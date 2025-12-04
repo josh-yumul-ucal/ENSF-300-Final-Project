@@ -229,7 +229,8 @@ def data_entry():
     "\n1: Insert" \
     "\n2: Update" \
     "\n3: Delete" \
-    "\n4: Select"))
+    "\n4: Select" \
+    "\n5: Search\n"))
     discern_query(query_type)
 
 def discern_query(query_type):
@@ -240,11 +241,61 @@ def discern_query(query_type):
     elif (query_type == 3):
         allowed_query = "DELETE"
     elif (query_type == 4):
-        allowed_query = "SELECT"
+        allowed_query = "SELECT" 
+    elif (query_type == 5):
+        user_search_input = input("Search: ")
+        user_search(user_search_input)
+        data_entry()
     else:
         print("Invalid input, please try again")
         return data_entry()
     perform_query(allowed_query)
+
+def user_search(user_search_input):
+    term = "%" + user_search_input.strip() + "%"
+    print(f'\nSearching for: "{user_search_input}"\n')
+
+    print("🔎 Artists matching your search:\n")
+    query_artists = """
+        SELECT Name, Style, Origin, Epoch, BirthDate, DeathDate
+        FROM ARTIST
+        WHERE Name LIKE %s
+           OR Style LIKE %s
+           OR Origin LIKE %s
+           OR Epoch LIKE %s
+           OR Description LIKE %s;
+    """
+    cur.execute(query_artists, (term, term, term, term, term))
+    print_query_results(cur)
+
+    print("\n🔎 Artworks matching your search:\n")
+    query_artworks = """
+        SELECT AO.ArtID, AO.Title, AO.Year, AO.Epoch, AO.Country,
+               GROUP_CONCAT(A.Name SEPARATOR ', ') AS Artists
+        FROM ARTOBJECTS AO
+        LEFT JOIN CREATEDBY C ON AO.ArtID = C.ArtID
+        LEFT JOIN ARTIST A ON C.ArtistName = A.Name
+        WHERE AO.Title LIKE %s
+           OR AO.Description LIKE %s
+           OR AO.Country LIKE %s
+           OR AO.Epoch LIKE %s
+           OR A.Name LIKE %s
+        GROUP BY AO.ArtID, AO.Title, AO.Year, AO.Epoch, AO.Country;
+    """
+    cur.execute(query_artworks, (term, term, term, term, term))
+    print_query_results(cur)
+
+    print("\n🔎 Exhibitions matching your search:\n")
+    query_exhibitions = """
+        SELECT ExName, StartDate, EndDate
+        FROM EXHIBITIONS
+        WHERE ExName LIKE %s;
+    """
+    cur.execute(query_exhibitions, (term,))
+    print_query_results(cur)
+
+    print("\nSearch complete.\n")
+
 
 def perform_query(allowed_query):
     while True:
@@ -301,9 +352,9 @@ if __name__ == "__main__":
     print("Welcome to the Group 10 Art Museum")
     is_data_entering = data_entry_view()
     if (is_data_entering == True):
-        username = input("Input Username") 
+        username = input("Input Username: ") 
         """dataman"""
-        passcode = input("Input password")
+        passcode = input("Input password: ")
         """dataman"""
     else:
         username = "Guest"
