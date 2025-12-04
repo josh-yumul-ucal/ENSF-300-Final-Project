@@ -1,0 +1,109 @@
+use Museum;
+
+-- 1) Show all tables
+SHOW TABLES;
+DESCRIBE ARTIST;
+DESCRIBE ARTOBJECTS;
+DESCRIBE BORROWEDART;
+DESCRIBE BORROWEDFROM;
+DESCRIBE CREATEDBY;
+DESCRIBE EXHIBITIONS;
+DESCRIBE MUSEUM;
+DESCRIBE ONDISPLAY;
+DESCRIBE OTHERART;
+DESCRIBE OTHERCOLLECTIONS;
+DESCRIBE PAINTING;
+DESCRIBE PERMANENTART;
+DESCRIBE PHONENUM;
+DESCRIBE SCULPTURE;
+DESCRIBE STATUE;
+
+-- 2) Basic Retrieval Query
+SELECT ArtID, Title, Year, Epoch, Country, Description
+FROM ARTOBJECTS;
+
+-- 3) Retrieval Query With Ordered Results
+SELECT ExName, StartDate, EndDate
+FROM EXHIBITIONS
+ORDER BY StartDate ASC;
+    
+-- 4) Nested Retrieval Query
+SELECT ArtID, Title, Year, Epoch
+FROM ARTOBJECTS WHERE ArtID IN (
+	SELECT CREATEDBY.ArtID
+    FROM CREATEDBY
+    WHERE CREATEDBY.ArtistName IN (
+		SELECT ARTIST.Name
+        FROM ARTIST
+        WHERE ARTIST.Origin = 'Italy'
+	)
+);
+
+-- 5) Retrieval Query With Joined Tables
+SELECT AO.ArtID, AO.Title, ARTIST.Name, ARTIST.Style
+FROM ARTOBJECTS AS AO
+JOIN CREATEDBY ON AO.ArtID = CREATEDBY.ArtID
+JOIN ARTIST ON CREATEDBY.ArtistName = ARTIST.Name;
+
+-- 6) Update Operation and Triggers
+
+-- Create Cost > 0 Insert Trigger
+DELIMITER **
+CREATE TRIGGER check_art_cost
+BEFORE INSERT ON PERMANENTART
+FOR EACH ROW
+BEGIN
+	IF NEW.Cost < 0 THEN
+		SIGNAL SQLSTATE "45000"
+			SET MESSAGE_TEXT = "Cost must be greater than $0";
+	END IF;
+END **
+DELIMITER ;
+
+-- Cost > 0 Update Trigger
+DELIMITER **
+CREATE TRIGGER check_art_cost
+BEFORE UPDATE ON PERMANENTART
+FOR EACH ROW
+BEGIN
+	IF NEW.Cost < 0 THEN
+		SIGNAL SQLSTATE "45000"
+			SET MESSAGE_TEXT = "Cost must be greater than $0";
+	END IF;
+END **
+DELIMITER ;
+
+-- EndDate >= StartDate Insert Trigger
+DELIMITER **
+CREATE TRIGGER exhibition_start_end_dates
+BEFORE INSERT ON EXHIBITIONS
+FOR EACH ROW
+Begin
+	IF NEW.EndDate < NEW.StartDate THEN
+		SIGNAL SQLSTATE "22007"
+			SET MESSAGE_TEXT = "End date occurs before start date, please retry";
+	END IF;
+END**
+
+DELIMITER ;
+
+-- 7) Deletion Operation With Triggers
+DELETE FROM Artist
+WHERE Name = 'Leonardo Da Vinci';
+
+-- TRIGGER:
+DELIMITER **
+CREATE TRIGGER artist_has_art
+BEFORE DELETE ON Artist
+FOR EACH ROW
+BEGIN
+	IF EXISTS (
+		SELECT 1
+        FROM CREATEDBY
+	) THEN
+		SIGNAL SQLSTATE "45000"
+			SET MESSAGE_TEXT = "Cannot delete artist with artwork in museum.";
+	END IF;
+END**
+
+
